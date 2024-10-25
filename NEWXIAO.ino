@@ -16,6 +16,7 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 unsigned long tempoAtivacao = 0;
+unsigned long tempoSensorDetectado = 0;  // Variável para contar o tempo de detecção contínua
 bool releLigado = false;
 bool ignorarSensor = false;
 int dosagem = 15;       // Dosagem inicial em ml (começa com 15ml)
@@ -103,12 +104,18 @@ void loop() {
     tempoDosagem = 2400;   // 30ml em 2.4 segundos
   }
 
-  // Se o sensor detectar 1 e não estiver ignorando
-  if (estadoIR == HIGH && !ignorarSensor) {
-    digitalWrite(RELE, LOW);  // Liga o relé
-    tempoAtivacao = millis();   // Armazena o tempo de ativação
-    releLigado = true;          // Marca que o relé foi ligado
-    ignorarSensor = true;       // Começa a ignorar novas leituras do sensor
+  // Se o sensor detectar 1, verifica o tempo de detecção contínua
+  if (estadoIR == HIGH) {
+    if (tempoSensorDetectado == 0) {
+      tempoSensorDetectado = millis();  // Marca o início da detecção contínua
+    } else if (millis() - tempoSensorDetectado >= 2000 && !ignorarSensor) {  // Verifica se já passaram 2 segundos
+      digitalWrite(RELE, LOW);  // Liga o relé
+      tempoAtivacao = millis();   // Armazena o tempo de ativação
+      releLigado = true;          // Marca que o relé foi ligado
+      ignorarSensor = true;       // Começa a ignorar novas leituras do sensor
+    }
+  } else {
+    tempoSensorDetectado = 0; // Reseta o contador se o sensor parar de detectar
   }
 
   // Se o relé estiver ligado e já passaram os segundos conforme a dosagem
@@ -139,14 +146,14 @@ void atualizarDisplay() {
 
   display.clearDisplay();
   display.setCursor(0, 0); 
-  display.setTextSize(1);  // Aumenta o tamanho do texto para 2
+  display.setTextSize(1);  // Aumenta o tamanho do texto para 1
   display.println("Dosagem:");
   display.setCursor(0, 20);
   display.setTextSize(3);  // Aumenta o tamanho do texto para 3 para exibir a dosagem
   display.print(dosagem);
   display.println("ml");
 
-  // Exibe a porcentagem restante com tamanho maior
+  // Exibe apenas a porcentagem restante
   display.setCursor(0, 50);
   display.setTextSize(1);  
   display.print("Restante: ");
